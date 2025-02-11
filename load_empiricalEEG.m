@@ -1,0 +1,124 @@
+%% EEG Data Loading and Preprocessing Pipeline (Healthy and Epileptic Subjects)
+% This script loads EEG data from healthy and epileptic subjects separately,
+% preprocesses each dataset, and prepares them for feature extraction and classification.
+
+%% STEP 1: Load and Preprocess Healthy EEG Data
+
+% Path to Healthy EEG Data
+healthyFolder = 'D:\OneDrive - CCLAB\Postdoc\Draft\IJCAI 2025\Real Data\HealthySubjects';
+
+% Load Healthy EEG Data
+[healthyData, healthyFs] = loadHealthyEEGData(healthyFolder);
+
+% Save Processed Healthy Data
+save('Processed_HealthyEEG.mat', 'healthyData', 'healthyFs');
+
+fprintf('Healthy EEG Data successfully loaded and preprocessed.\n');
+
+%% STEP 2: Load and Preprocess Epileptic EEG Data
+
+% Path to Epileptic EEG Data
+epilepticFolder = 'D:\OneDrive - CCLAB\Postdoc\Draft\IJCAI 2025\Real Data\Epilepsy Patients\Ses2AcrossSubject';
+
+% Load Epileptic EEG Data
+[epilepticData, epilepticFs] = loadEpilepticEEGData(epilepticFolder);
+
+% Save Processed Epileptic Data
+save('Processed_EpilepticEEG.mat', 'epilepticData', 'epilepticFs');
+
+fprintf('Epileptic EEG Data successfully loaded and preprocessed.\n');
+
+%% Helper Function: Load Healthy EEG Data
+function [dataMatrix, targetFs] = loadHealthyEEGData(folderPath)
+    dataCell = {};
+    subfolders = dir(folderPath);
+    thalamicChannels = {'Fz', 'FCz', 'Cz', 'Pz', 'Oz'}; % Thalamic-related electrodes
+    sampleRates = [];
+
+    for i = 1:length(subfolders)
+        if ~subfolders(i).isdir || strcmp(subfolders(i).name, '.') || strcmp(subfolders(i).name, '..')
+            continue;
+        end
+        folderName = subfolders(i).name;
+        exportFolder = fullfile(folderPath, folderName, 'export');
+
+        % Dynamically find the correct EEG file
+        vhdrFile = dir(fullfile(exportFolder, '*Pulse*Correction_bin.vhdr'));
+        if isempty(vhdrFile)
+            disp(['No EEG file found for subject: ', folderName]);
+            continue;
+        end
+        vhdrFilePath = fullfile(exportFolder, vhdrFile(1).name);
+
+        try
+            hdr = ft_read_header(vhdrFilePath);
+            rawData = ft_read_data(vhdrFilePath);
+            sampleRates = [sampleRates, hdr.Fs];
+
+            % Extract only thalamic-related channels
+            selectedChannels = find(ismember(hdr.label, thalamicChannels));
+            if isempty(selectedChannels)
+                disp(['No thalamic channels found for: ', folderName]);
+                continue;
+            end
+            rawData = rawData(selectedChannels, :);
+            dataCell{end+1} = rawData;
+        catch ME
+            disp(['Error reading EEG file: ', vhdrFilePath, ' - ', ME.message]);
+            continue;
+        end
+    end
+
+    % Determine the lowest sampling rate across all subjects
+    targetFs = min(sampleRates);
+    
+    % Resample all EEG signals to match target sampling rate
+    for i = 1:length(dataCell)
+        dataCell{i} = resample(dataCell{i}', targetFs, size(dataCell{i}, 2))';
+    end
+
+    % Convert cell array to matrix
+    dataMatrix = cell2mat(dataCell);
+end
+
+%% Helper Function: Load Epileptic EEG Data
+function [dataMatrix, targetFs] = loadEpilepticEEGData(folderPath)
+    dataCell = {};
+    fileList = dir(fullfile(folderPath, '*.edf'));
+    thalamicChannels = {'Fz', 'FCz', 'Cz', 'Pz', 'Oz'};
+    sampleRates = [];
+
+    for i = 1:length(fileList)
+        fileName = fileList(i).name;
+        filePath = fullfile(folderPath, fileName);
+
+        try
+            eegData = ft_read_data(filePath);
+            hdr = ft_read_header(filePath);
+            sampleRates = [sampleRates, hdr.Fs];
+
+            % Extract only thalamic-related channels
+            selectedChannels = find(ismember(hdr.label, thalamicChannels));
+            if isempty(selectedChannels)
+                disp(['No thalamic channels found in: ', fileName]);
+                continue;
+            end
+            eegData = eegData(selectedChannels, :);
+            dataCell{end+1} = eegData;
+        catch ME
+            disp(['Error reading EEG file: ', filePath, ' - ', ME.message]);
+            continue;
+        end
+    end
+
+    % Determine the lowest sampling rate across all subjects
+    targetFs = min(sampleRates);
+    
+    % Resample all EEG signals to match target sampling rate
+    for i = 1:length(dataCell)
+        dataCell{i} = resample(dataCell{i}', targetFs, size(dataCell{i}, 2))';
+    end
+
+    % Convert cell array to matrix
+    dataMatrix = cell2mat(dataCell);
+end
