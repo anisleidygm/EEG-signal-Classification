@@ -1,0 +1,149 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ENHANCED VISUALIZATION SNIPPETS FOR EEG PIPELINE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% ============= 1) Alpha Power vs. Peak Frequency (Scatter) ============= %
+alphaIdx = 4;  % Column for Alpha Power
+peakFreqIdx = 5;  % Column for Peak Frequency
+
+% Convert AugmentedLabels to a categorical array for better color handling
+AugmentedLabelsCat = categorical(AugmentedLabels);
+
+figure('Name','Alpha vs. Peak Frequency','Color','white');
+tiledlayout(1,1,'Padding','compact','TileSpacing','compact');
+nexttile;
+
+% Create a color map with distinct colors for each class
+colors = lines(numel(categories(AugmentedLabelsCat)));
+
+% Plot a more stylized scatter
+hold on;
+catNames = categories(AugmentedLabelsCat);   % get the list of categories
+for classID = 1:numel(catNames)
+    className = catNames(classID);
+    idx = (AugmentedLabelsCat == className);
+    scatter( AugmentedFeatures(idx, alphaIdx), AugmentedFeatures(idx, peakFreqIdx), ...
+        60, 'MarkerEdgeColor','k','MarkerFaceColor',colors(classID,:), ...
+        'DisplayName', char(className), 'LineWidth',1.2 );
+end
+% for classID = 1:numel(categories(AugmentedLabelsCat))
+%     className = categories(AugmentedLabelsCat)(classID);
+%     idx = (AugmentedLabelsCat == className);
+%     scatter( AugmentedFeatures(idx, alphaIdx), AugmentedFeatures(idx, peakFreqIdx), ...
+%              60, 'MarkerEdgeColor','k','MarkerFaceColor',colors(classID,:), ...
+%              'DisplayName', char(className), 'LineWidth',1.2 );
+% end
+hold off;
+
+xlabel('Alpha Band Power (normalized)','FontWeight','bold');
+ylabel('Peak Frequency (Hz)','FontWeight','bold');
+title('EEG Feature Space: Alpha vs. Peak Frequency','FontSize',12,'FontWeight','bold');
+legend('Location','best');
+grid on; box on;
+
+% ============= 2) Power Spectral Density with Shaded Region ============= %
+winLengthNew = 1024;   
+overlapNew   = 256;    
+nfftNew      = 2048;   
+windowFn     = rectwin(winLengthNew);  
+
+% For demonstration, pick the first healthy/pathological signals
+signalHealthy = healthySignals{1}; 
+signalPath    = pathologicalSignals{1};
+
+[pxxHealthy, f] = pwelch(signalHealthy, windowFn, overlapNew, nfftNew, Fs);
+[pxxPathological, ~] = pwelch(signalPath, windowFn, overlapNew, nfftNew, Fs);
+
+validFreqIdx = f <= 50;  % Focus on 0-50 Hz
+fPlot  = f(validFreqIdx);
+pxxH   = 10*log10(pxxHealthy(validFreqIdx));
+pxxP   = 10*log10(pxxPathological(validFreqIdx));
+
+figure('Name','PSD Comparison','Color','white');
+tiledlayout(1,1,'Padding','compact','TileSpacing','compact');
+nexttile;
+
+% Plot healthy with fill to highlight region
+fill([fPlot; flipud(fPlot)], [pxxH; -100*ones(length(pxxH),1)], ...
+     [0.5 0.8 1], 'EdgeColor','none','FaceAlpha',0.3); % transparent fill
+hold on;
+
+plot(fPlot, pxxH, 'b-', 'LineWidth',2, 'DisplayName','Healthy');
+plot(fPlot, pxxP, 'r-', 'LineWidth',2, 'DisplayName','Pathological');
+
+xlabel('Frequency (Hz)','FontWeight','bold');
+ylabel('Power/Frequency (dB/Hz)','FontWeight','bold');
+title('Power Spectral Density (0-50 Hz)','FontSize',12,'FontWeight','bold');
+legend('Location','best');
+axis tight; grid on; box on;
+
+% ============= 3) Pairwise Scatter with Enhanced Aesthetics ============= %
+figure('Name','Pairwise Feature Scatter','Color','white');
+labelsCell = {'Amplitude','Delta','Theta','Alpha','PeakFreq'};
+
+% We can use 'gplotmatrix', but style each subplot more richly
+[~, ax] = gplotmatrix(AugmentedFeatures,[],AugmentedLabelsCat, ...
+                      lines(numel(categories(AugmentedLabelsCat))), ...
+                      '.', 8, 'on', 'hist', labelsCell, labelsCell);
+
+% Adjust axis properties
+for iAx = 1:numel(ax)
+    if isvalid(ax(iAx))
+        ax(iAx).LineWidth = 1.1;
+        ax(iAx).Box = 'on';
+        ax(iAx).GridColor = [0.8 0.8 0.8];
+    end
+end
+sgtitle('Enhanced Pairwise Feature Scatter','FontSize',12,'FontWeight','bold');
+
+% ============= 4) Anomaly Detection Scores with Gradient Scatter ============= %
+figure('Name','Anomaly Detection Scores','Color','white');
+tiledlayout(1,1,'Padding','compact','TileSpacing','compact');
+nexttile;
+
+scatterSize = 60;
+cmap = parula(2); % A two-color gradient for healthy vs. pathological
+idxHealthy = (AugmentedLabelsCat == 'Healthy');
+idxPath    = (AugmentedLabelsCat == 'Pathological');
+
+scatter( find(idxHealthy), anomalyScores(idxHealthy), scatterSize, ...
+         'o','MarkerEdgeColor','k','MarkerFaceColor',cmap(1,:), ...
+         'LineWidth',1.0,'DisplayName','Healthy');
+hold on;
+scatter( find(idxPath), anomalyScores(idxPath), scatterSize, ...
+         'o','MarkerEdgeColor','k','MarkerFaceColor',cmap(2,:), ...
+         'LineWidth',1.0,'DisplayName','Pathological');
+yline(threshold, '--r','Threshold','LabelHorizontalAlignment','right',...
+       'LabelVerticalAlignment','middle','LineWidth',1.5);
+
+xlabel('Sample Index','FontWeight','bold');
+ylabel('Anomaly Score','FontWeight','bold');
+title('One-Class SVM Anomaly Detection','FontSize',12,'FontWeight','bold');
+legend('Location','best');
+grid on; box on;
+
+% ============= 5) t-SNE Visualization with Enhanced Color Coding ============= %
+fprintf('Performing t-SNE...\n');
+tsneResults = tsne(AugmentedFeatures, 'NumDimensions', 2, 'Perplexity', 30);
+
+figure('Name','t-SNE Visualization','Color','white');
+tiledlayout(1,1,'Padding','compact','TileSpacing','compact');
+nexttile;
+
+hold on;
+classCats = categories(AugmentedLabelsCat);
+colorMapTSNE = lines(numel(classCats));
+for cID = 1:numel(classCats)
+    cName = classCats(cID);
+    cIdx  = (AugmentedLabelsCat == cName);
+    scatter(tsneResults(cIdx,1), tsneResults(cIdx,2), ...
+            70, 'MarkerEdgeColor','k','MarkerFaceColor',colorMapTSNE(cID,:), ...
+            'DisplayName', char(cName), 'LineWidth',1.2);
+end
+hold off;
+
+xlabel('t-SNE Dim 1','FontWeight','bold');
+ylabel('t-SNE Dim 2','FontWeight','bold');
+title('t-SNE Visualization of EEG Features','FontSize',12,'FontWeight','bold');
+legend('Location','best');
+grid on; box on;
