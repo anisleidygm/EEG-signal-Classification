@@ -1,11 +1,12 @@
-%% EEG Data Loading and Preprocessing Pipeline (Healthy and Epileptic Subjects)
+%% Empirical EEG Data Loading and Preprocessing Pipeline 
 % This script loads EEG data from healthy and epileptic subjects separately,
 % preprocesses each dataset, and prepares them for feature extraction and classification.
+% Several channels closely related to the Thalamo are extracted
 
 %% STEP 1: Load and Preprocess Healthy EEG Data
 
 % Path to Healthy EEG Data
-healthyFolder = 'D:\OneDrive - CCLAB\Postdoc\Draft\IJCAI 2025\Real Data\HealthySubjects';
+healthyFolder = '';
 
 % Load Healthy EEG Data
 [healthyData, healthyFs] = loadHealthyEEGData(healthyFolder);
@@ -18,7 +19,7 @@ fprintf('Healthy EEG Data successfully loaded and preprocessed.\n');
 %% STEP 2: Load and Preprocess Epileptic EEG Data
 
 % Path to Epileptic EEG Data
-epilepticFolder = 'D:\OneDrive - CCLAB\Postdoc\Draft\IJCAI 2025\Real Data\Epilepsy Patients\Ses2AcrossSubject';
+epilepticFolder = '';
 
 % Load Epileptic EEG Data
 [epilepticData, epilepticFs] = loadEpilepticEEGData(epilepticFolder);
