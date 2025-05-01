@@ -1,8 +1,12 @@
-%% Final Pipeline: Healthy vs Pathological Signal Analysis
-% This script processes an extended EEG dataset, augments the signals, extracts features, and performs classification and visualization.
+
+%%%%%%% SYNTHETIC EEG DATA ANALYSIS PIPELINE %%%%%%%
+
+% The synthetic data was generated using the thalamocortical DD-NMM (https://github.com/anisleidygm/Brain_Modeling)
+% This script processes an extended EEG dataset, including both, heathy and pathological simulated signals.
+% The methodology includes augmentation of the signals, features extraction, classification and visualization.
 
 %% STEP 1: Load Data
-folderPath = 'D:\OneDrive - CCLAB\Postdoc\Draft\IJCAI 2025\Data\Data'; % Folder containing .mat files
+folderPath = ''; % Folder containing .mat files
 fileList = dir(fullfile(folderPath, '*.mat'));
 data = struct();
 
